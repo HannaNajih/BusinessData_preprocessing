@@ -1,12 +1,17 @@
+import argparse
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 def main():
-   
-    file_name = 'BusinessDS.xlsx'  
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Process an Excel file.')
+    parser.add_argument('--file_path', type=str, default='BusinessDS.xlsx', help='Path to the Excel file')
+    args = parser.parse_args()
 
     # Read the data from the Excel file
     try:
-        df = pd.read_excel(file_name, parse_dates=['Date'])
+        df = pd.read_excel(args.file_path, parse_dates=['Date'])
         print("Data loaded successfully.")
     except Exception as e:
         print(f"Error loading data: {e}")
@@ -39,6 +44,38 @@ def main():
             print(f"Error parsing row {index}: {e}")
 
     print("Processing complete.")
+
+    # Save the processed data to a new CSV file
+    output_csv_path = 'processed_data.csv'
+    df.to_csv(output_csv_path, index=False)
+    print(f"Processed data saved to {output_csv_path}")
+
+    # Save to a new Excel file
+    output_excel_path = 'processed_data.xlsx'
+    df.to_excel(output_excel_path, index=False)
+    print(f"Processed data saved to {output_excel_path}")
+
+    # Calculate business statistics
+    print("\nBasic Statistics:")
+    print(df.describe())
+
+    # Filter rows where Position Type is 'L' (Long)
+    long_positions = df[df['Position Type'] == 'L']
+    print("\nLong Positions:")
+    print(long_positions)
+
+    # Group by Ticker and calculate the average ratio
+    grouped_data = df.groupby('Ticker')['Ratio'].mean()
+    print("\nAverage Ratio by Ticker:")
+    print(grouped_data)
+
+    # Plot the distribution of the 'Ratio' column
+    plt.figure(figsize=(10, 6))
+    sns.histplot(df['Ratio'], bins=20, kde=True)
+    plt.title('Distribution of Ratios')
+    plt.xlabel('Ratio')
+    plt.ylabel('Frequency')
+    plt.show()
 
 if __name__ == "__main__":
     main()

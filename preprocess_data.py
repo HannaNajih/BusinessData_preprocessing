@@ -1,7 +1,10 @@
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
+import scipy
 import seaborn as sns
+from scipy.stats import zscore
+from sklearn.preprocessing import MinMaxScaler
 
 def main():
     # Set up argument parser
@@ -17,7 +20,7 @@ def main():
         print(f"Error loading data: {e}")
         return
 
-    # Report general statistics
+    # === Task 1: Report general statistics ===
     print("\n=== General Statistics ===")
     num_samples = df.shape[0]  # Number of rows (samples)
     num_features = df.shape[1]  # Number of columns (features)
@@ -28,65 +31,93 @@ def main():
     print("\nDescriptive Statistics:")
     print(df.describe(include='all'))
 
-    # Process each row
-    for index, row in df.iterrows():
-        try:
-            # Access the date and convert it to a string
-            date_str = row['Date'].strftime('%Y-%m-%d %H:%M:%S')
-            parts = date_str.split(' ')  # Split into date and time
-            print(f"\nRow {index}: Date = {parts[0]}, Time = {parts[1]}")
+    # === Task 2: Report categorical and continuous features with appropriate charts ===
+    print("\n=== Categorical and Continuous Features ===")
+    categorical_features = df.select_dtypes(include=['object', 'category']).columns
+    continuous_features = df.select_dtypes(include=['int64', 'float64']).columns
 
-            # Access other columns
-            file_name = row['File Name']
-            position_type = row['Position Type']
-            ticker = row['Ticker']
-            ratio = row['Ratio']
-            current_price = row['Current Price']
-            reference_price = row['Reference Price']
-            average = row['Average']
+    print("Categorical Features:", categorical_features)
+    print("Continuous Features:", continuous_features)
 
-            # Print or process the data
-            print(f"File: {file_name}, Ticker: {ticker}, Position: {position_type}")
-            print(f"Ratio: {ratio}, Current Price: {current_price}, Reference Price: {reference_price}, Average: {average}")
-            print("-" * 40)
-        except KeyError as e:
-            print(f"Missing column in row {index}: {e}")
-        except Exception as e:
-            print(f"Error parsing row {index}: {e}")
+    # Visualize categorical features
+    for feature in categorical_features:
+        plt.figure(figsize=(10, 4))
+        sns.countplot(data=df, x=feature)
+        plt.title(f'Distribution of {feature}')
+        plt.show()
 
-    print("Processing complete.")
+    # Visualize continuous features
+    for feature in continuous_features:
+        plt.figure(figsize=(10, 4))
+        sns.histplot(df[feature], kde=True)
+        plt.title(f'Distribution of {feature}')
+        plt.show()
 
-    # Save the processed data to a new CSV file
-    output_csv_path = 'processed_data.csv'
-    df.to_csv(output_csv_path, index=False)
-    print(f"\nProcessed data saved to {output_csv_path}")
+    # === Task 3: Find outliers with two methods (Z-Score and IQR) ===
+    print("\n=== Outlier Detection ===")
+    # Z-Score Method
+    z_scores = df[continuous_features].apply(zscore)  # Calculate Z-Score for each continuous feature
+    outliers_z = df[(z_scores.abs() > 3).any(axis=1)]  # Identify rows with any Z-Score > 3
+    print("Outliers detected using Z-Score:")
+    print(outliers_z)
 
-    # Save to a new Excel file
-    output_excel_path = 'processed_data.xlsx'
-    df.to_excel(output_excel_path, index=False)
-    print(f"Processed data saved to {output_excel_path}")
+    # IQR Method
+    Q1 = df[continuous_features].quantile(0.25)
+    Q3 = df[continuous_features].quantile(0.75)
+    IQR = Q3 - Q1
+    outliers_iqr = df[((df[continuous_features] < (Q1 - 1.5 * IQR)) | (df[continuous_features] > (Q3 + 1.5 * IQR)))].any(axis=1);
+    print("\nOutliers detected using IQR:")
+    print(outliers_iqr)
 
-    # Calculate business statistics
-    print("\n=== Business Statistics ===")
-    print("Basic Statistics:")
-    print(df.describe())
+    # === Task 4: Report statistics of missing values and treat them ===
+    print("\n=== Missing Values ===")
+    missing_values = df.isnull().sum()
+    print("Missing Values:")
+    print(missing_values)
 
-    # Filter rows where Position Type is 'L' (Long)
-    long_positions = df[df['Position Type'] == 'L']
-    print("\nLong Positions:")
-    print(long_positions)
+    # Treat missing values (fill with median for continuous features)
+    df_filled = df.copy()
+    for feature in continuous_features:
+        df_filled[feature].fillna(df_filled[feature].median(), inplace=True)
+    print("\nDataset after filling missing values:")
+    print(df_filled.isnull().sum())
 
-    # Group by Ticker and calculate the average ratio
-    grouped_data = df.groupby('Ticker')['Ratio'].mean()
-    print("\nAverage Ratio by Ticker:")
-    print(grouped_data)
+    # === Task 5: Report probable data cleaning actions ===
+    print("\n=== Probable Data Cleaning Actions ===")
+    print("1. Handle missing values by filling them with median/mean.")
+    print("2. Remove or cap outliers detected using Z-Score and IQR.")
+    print("3. Convert categorical features to numerical using one-hot encoding or label encoding.")
+    print("4. Normalize/standardize continuous features.")
 
-    # Plot the distribution of the 'Ratio' column
+    # === Task 6: Normalize the dataset ===
+    print("\n=== Normalization ===")
+    scaler = MinMaxScaler()
+    df_normalized = df_filled.copy()
+    df_normalized[continuous_features] = scaler.fit_transform(df_filled[continuous_features])
+    print("\nNormalized Dataset:")
+    print(df_normalized.head())
+
+    # Save the normalized dataset to a new file
+    df_normalized.to_excel('normalized_data.xlsx', index=False)
+    print("\nNormalized dataset saved to 'normalized_data.xlsx'.")
+
+    # === Task 7: Visualize important relationships between features ===
+    print("\n=== Feature Relationships ===")
+    # Pairplot for continuous features
+    sns.pairplot(df_normalized[continuous_features])
+    plt.suptitle('Pairplot of Continuous Features', y=1.02)
+    plt.show()
+
+    # Correlation heatmap
     plt.figure(figsize=(10, 6))
-    sns.histplot(df['Ratio'], bins=20, kde=True)
-    plt.title('Distribution of Ratios')
-    plt.xlabel('Ratio')
-    plt.ylabel('Frequency')
+    sns.heatmap(df_normalized[continuous_features].corr(), annot=True, cmap='coolwarm')
+    plt.title('Correlation Heatmap')
+    plt.show()
+
+    # Scatter plot for specific relationships (e.g., Current Price vs. Reference Price)
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(data=df_normalized, x='Current Price', y='Reference Price', hue='Position Type')
+    plt.title('Current Price vs. Reference Price')
     plt.show()
 
 if __name__ == "__main__":

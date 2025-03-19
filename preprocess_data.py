@@ -17,13 +17,24 @@ def main():
         print(f"Error loading data: {e}")
         return
 
+    # Report general statistics
+    print("\n=== General Statistics ===")
+    num_samples = df.shape[0]  # Number of rows (samples)
+    num_features = df.shape[1]  # Number of columns (features)
+    print(f"Number of samples (rows): {num_samples}")
+    print(f"Number of features (columns): {num_features}")
+    print("\nDataset Info:")
+    print(df.info())
+    print("\nDescriptive Statistics:")
+    print(df.describe(include='all'))
+
     # Process each row
     for index, row in df.iterrows():
         try:
             # Access the date and convert it to a string
             date_str = row['Date'].strftime('%Y-%m-%d %H:%M:%S')
             parts = date_str.split(' ')  # Split into date and time
-            print(f"Row {index}: Date = {parts[0]}, Time = {parts[1]}")
+            print(f"\nRow {index}: Date = {parts[0]}, Time = {parts[1]}")
 
             # Access other columns
             file_name = row['File Name']
@@ -48,7 +59,7 @@ def main():
     # Save the processed data to a new CSV file
     output_csv_path = 'processed_data.csv'
     df.to_csv(output_csv_path, index=False)
-    print(f"Processed data saved to {output_csv_path}")
+    print(f"\nProcessed data saved to {output_csv_path}")
 
     # Save to a new Excel file
     output_excel_path = 'processed_data.xlsx'
@@ -56,7 +67,8 @@ def main():
     print(f"Processed data saved to {output_excel_path}")
 
     # Calculate business statistics
-    print("\nBasic Statistics:")
+    print("\n=== Business Statistics ===")
+    print("Basic Statistics:")
     print(df.describe())
 
     # Filter rows where Position Type is 'L' (Long)
